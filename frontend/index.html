@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Concurrency Based Exam Scheduling System</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="brand">
+          <div class="logo" aria-hidden="true">CS</div>
+          <div>
+            <div class="title">Concurrency Based Exam Scheduling System</div>
+            <div class="subtitle">Exam timetable generator (Greedy + constraints)</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="btnLoadSample" class="btn btn-secondary" type="button">Load sample</button>
+          <button id="btnReset" class="btn btn-ghost" type="button">Reset</button>
+        </div>
+      </header>
+
+      <main class="grid">
+        <section class="card">
+          <div class="card-title">College capacity</div>
+          <div class="row" style="margin-bottom: 10px;">
+            <div class="hint">Add each classroom with its own seat capacity. Total seats/shift is auto-calculated as the sum.</div>
+            <div class="row-actions">
+              <button id="btnAddClassroom" class="btn btn-secondary" type="button">Add classroom</button>
+            </div>
+          </div>
+
+          <div class="table-wrap" style="margin-bottom: 12px;">
+            <table class="table" aria-label="Classrooms table" style="min-width: 620px;">
+              <thead>
+                <tr>
+                  <th style="width: 60%">Classroom name</th>
+                  <th style="width: 40%">Seats</th>
+                </tr>
+              </thead>
+              <tbody id="classroomTbody"></tbody>
+            </table>
+          </div>
+
+          <div class="form-grid">
+            <label class="field">
+              <span class="label">Total seats per shift (auto)</span>
+              <input id="totalSeats" type="number" min="1" step="1" value="0" readonly />
+              <span class="hint">Calculated as the sum of all classroom seats. (Read-only)</span>
+            </label>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-title">Global constraints</div>
+          <div class="form-grid">
+            <label class="field">
+              <span class="label">Shifts per day</span>
+              <select id="shiftsPerDay">
+                <option value="1">1 (Morning)</option>
+                <option value="2" selected>2 (Morning + Afternoon)</option>
+                <option value="3">3 (Morning + Afternoon + Evening)</option>
+              </select>
+              <span class="hint">Morning 08:00, Afternoon 12:00, Evening 16:00.</span>
+            </label>
+
+            <label class="field">
+              <span class="label">Exam duration (hours)</span>
+              <input id="examLengthHours" type="number" min="1" max="6" step="1" value="3" />
+              <span class="hint">Used to compute time slots (e.g., 08:00 AM - 11:00 AM).</span>
+            </label>
+
+            <label class="field">
+              <span class="label">Gap between same-department exams (days)</span>
+              <input id="gapDays" type="number" min="0" step="1" value="1" />
+              <span class="hint">A gap of 1 means exams must be at least 2 days apart.</span>
+            </label>
+          </div>
+        </section>
+
+        <section class="card card-wide">
+          <div class="card-title row">
+            <span>Departments</span>
+            <div class="row-actions">
+              <button id="btnAddDept" class="btn btn-secondary" type="button">Add department</button>
+              <button id="btnGenerate" class="btn btn-primary" type="button">Generate schedule</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table" aria-label="Departments table">
+              <thead>
+                <tr>
+                  <th style="width: 28%">Department name</th>
+                  <th style="width: 14%">Code</th>
+                  <th style="width: 18%">Students</th>
+                  <th style="width: 18%">Exams</th>
+                  <th style="width: 22%"></th>
+                </tr>
+              </thead>
+              <tbody id="deptTbody"></tbody>
+            </table>
+          </div>
+
+          <div id="issues" class="issues" hidden></div>
+        </section>
+
+        <section class="card card-wide" id="resultsCard" hidden>
+          <div class="card-title row">
+            <span>Generated schedule</span>
+            <div class="row-actions">
+              <button id="btnExportCsv" class="btn btn-secondary" type="button">Export CSV</button>
+              <button id="btnCopyCsv" class="btn btn-ghost" type="button">Copy CSV</button>
+            </div>
+          </div>
+
+          <div class="tabs" role="tablist" aria-label="Schedule views">
+            <button class="tab is-active" type="button" data-tab="byDept" role="tab" aria-selected="true">By department</button>
+            <button class="tab" type="button" data-tab="byDay" role="tab" aria-selected="false">By day</button>
+            <button class="tab" type="button" data-tab="byRoom" role="tab" aria-selected="false">Seating / rooms</button>
+            <button class="tab" type="button" data-tab="rawCsv" role="tab" aria-selected="false">Raw CSV</button>
+          </div>
+
+          <div class="tabpanes">
+            <div class="tabpane" data-pane="byDept" role="tabpanel"></div>
+            <div class="tabpane" data-pane="byDay" role="tabpanel" hidden></div>
+            <div class="tabpane" data-pane="byRoom" role="tabpanel" hidden></div>
+            <div class="tabpane" data-pane="rawCsv" role="tabpanel" hidden>
+              <textarea id="csvText" class="csv-text" spellcheck="false" readonly></textarea>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <div class="footer-left">
+          Output format matches your C++ exporter: <code>Department,Exam Number,Day,Shift,Time Slot,Room,Roll Numbers</code>
+        </div>
+        <div class="footer-right">
+          <a class="link" href="#" id="btnAbout">About constraints</a>
+        </div>
+      </footer>
+    </div>
+
+    <dialog id="aboutDialog" class="dialog">
+      <form method="dialog" class="dialog-inner">
+        <div class="dialog-title">How this generator works</div>
+        <div class="dialog-body">
+          <ul class="bullets">
+            <li><b>Greedy scheduling (FFD)</b>: departments are sorted by student count (descending), then each exam is placed into the first shift that fits.</li>
+            <li><b>Capacity constraint</b>: a shift has <i>Total seats per shift</i>. Each scheduled exam consumes seats equal to its student count.</li>
+            <li><b>Gap constraint</b>: a department’s exams can’t be within <i>Gap days</i> of each other (same rule as your C++: \(|day - usedDay| \le gap\) is conflict).</li>
+            <li><b>Rooms + roll numbers</b>: each exam is split into rooms of size <i>Room capacity</i> and assigned roll ranges like <code>CS-001 to CS-050</code>.</li>
+          </ul>
+          <p class="muted">Tip: If the calendar is too short, the generator automatically adds more days until everything is placed.</p>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-primary" type="submit">Close</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
